@@ -1,0 +1,76 @@
+﻿import { Link } from "react-router-dom";
+import { ShoppingCart, Star } from "lucide-react";
+import { Card, CardContent, CardFooter } from "../ui/Card";
+import { Button } from "../ui/Button";
+import { ImageWithFallback } from "../common/ImageWithFallback";
+import { useCart } from "../../contexts/CartContext";
+import { formatCurrency } from "../../utils/currency";
+
+export const ProductCard = ({ product }) => {
+  const { addToCart } = useCart();
+
+  const handleAddToCart = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    addToCart(product);
+  };
+
+  return (
+    <Link to={`/products/${product.id}`} className="group">
+      <Card className="h-full overflow-hidden transition hover:-translate-y-1 hover:shadow-lg">
+        <CardContent className="p-4">
+          <div className="aspect-square overflow-hidden rounded-2xl bg-gray-100">
+            <ImageWithFallback
+              src={product.image}
+              alt={product.name}
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            />
+          </div>
+
+          <div className="mt-4 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                {product.category}
+              </span>
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                  product.inStock
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-red-50 text-red-700"
+                }`}
+              >
+                {product.inStock ? "In Stock" : "Out of Stock"}
+              </span>
+            </div>
+
+            <h3 className="text-base font-semibold text-gray-900 line-clamp-2">
+              {product.name}
+            </h3>
+            <p className="text-sm text-gray-600 line-clamp-2">{product.description}</p>
+
+            <div className="flex items-center gap-1">
+              <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+              <span className="text-sm text-gray-700">{product.rating}</span>
+              <span className="text-xs text-gray-400">({product.reviews})</span>
+            </div>
+          </div>
+        </CardContent>
+
+        <CardFooter className="flex items-center justify-between px-4 py-3">
+          <p className="text-lg font-semibold text-blue-600">
+            {formatCurrency(product.price)}
+          </p>
+          <Button
+            size="sm"
+            onClick={handleAddToCart}
+            disabled={!product.inStock}
+            className="shadow"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Add
+          </Button>
+        </CardFooter>
+      </Card>
+    </Link>
+  );
+};

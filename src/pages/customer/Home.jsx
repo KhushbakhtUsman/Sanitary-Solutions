@@ -1,12 +1,31 @@
-﻿import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { ArrowRight, Award, Headphones, ShieldCheck, Truck } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { ImageWithFallback } from "../../components/common/ImageWithFallback";
 import { ProductCard } from "../../components/customer/ProductCard";
-import { products } from "../../data/products";
+import { getStoreProductsApi } from "../../services/storeApi";
 
 export const Home = () => {
-  const featuredProducts = products.slice(0, 6);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [productsError, setProductsError] = useState("");
+
+  useEffect(() => {
+    const loadFeaturedProducts = async () => {
+      try {
+        setLoadingProducts(true);
+        const { data } = await getStoreProductsApi({ page: 1, limit: 6, sortBy: "featured" });
+        setFeaturedProducts(data);
+      } catch (error) {
+        setProductsError(error.message || "Failed to load products.");
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    loadFeaturedProducts();
+  }, []);
 
   return (
     <div className="bg-slate-50">
@@ -106,45 +125,20 @@ export const Home = () => {
           </Link>
         </div>
 
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {featuredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+        <div className="mt-8">
+          {loadingProducts ? <p className="text-sm text-gray-500">Loading featured products...</p> : null}
+          {productsError ? <p className="text-sm text-red-600">{productsError}</p> : null}
+          {!loadingProducts && !productsError ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : null}
         </div>
       </section>
 
-      <section className="bg-white py-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
-            <div className="rounded-3xl bg-slate-900 p-10 text-white">
-              <h3 className="text-2xl font-semibold">Project ready bundles</h3>
-              <p className="mt-3 text-sm text-slate-200">
-                Need to furnish an entire site? Our bundles include fixtures, fittings, and accessories with
-                prioritized fulfillment.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button size="sm">Explore bundles</Button>
-                <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10">
-                  Talk to sales
-                </Button>
-              </div>
-            </div>
-            <div className="grid gap-4">
-              {[
-                "Installation-ready SKUs",
-                "Site delivery coordination",
-                "Volume pricing for contractors",
-                "Dedicated account manager",
-              ].map((item) => (
-                <div key={item} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <p className="text-sm font-semibold text-gray-900">{item}</p>
-                  <p className="text-xs text-gray-500">Designed for large-scale builds</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      
     </div>
   );
 };

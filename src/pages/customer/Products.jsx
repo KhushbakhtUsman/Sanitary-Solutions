@@ -1,15 +1,21 @@
-﻿import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
-import { products, categories, brands } from "../../data/products";
 import { ProductCard } from "../../components/customer/ProductCard";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
+import { getStoreProductMetaApi, getStoreProductsApi } from "../../services/storeApi";
 
 export const Products = () => {
   const [searchParams] = useSearchParams();
   const categoryParam = searchParams.get("category");
+
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState(["All"]);
+  const [brands, setBrands] = useState(["All"]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(categoryParam || "All");
@@ -17,14 +23,36 @@ export const Products = () => {
   const [sortBy, setSortBy] = useState("featured");
   const [priceRange, setPriceRange] = useState({ min: "", max: "" });
 
+  useEffect(() => {
+    const loadProductsPageData = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const [{ data: productsData }, meta] = await Promise.all([
+          getStoreProductsApi({ page: 1, limit: 1000, sortBy: "featured" }),
+          getStoreProductMetaApi(),
+        ]);
+
+        setProducts(productsData);
+        setCategories(meta.categories || ["All"]);
+        setBrands(meta.brands || ["All"]);
+      } catch (apiError) {
+        setError(apiError.message || "Failed to load products.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProductsPageData();
+  }, []);
+
   const filteredProducts = useMemo(() => {
     let filtered = [...products];
 
     if (searchQuery) {
       filtered = filtered.filter((product) =>
-        `${product.name} ${product.description}`
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase())
+        `${product.name} ${product.description}`.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -61,7 +89,7 @@ export const Products = () => {
     }
 
     return filtered;
-  }, [searchQuery, selectedCategory, selectedBrand, sortBy, priceRange]);
+  }, [products, searchQuery, selectedCategory, selectedBrand, sortBy, priceRange]);
 
   return (
     <div className="bg-slate-50">
@@ -88,10 +116,7 @@ export const Products = () => {
             <div className="mt-4 space-y-4">
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Category</p>
-                <Select
-                  value={selectedCategory}
-                  onChange={(event) => setSelectedCategory(event.target.value)}
-                >
+                <Select value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value)}>
                   {categories.map((category) => (
                     <option key={category} value={category}>
                       {category}
@@ -101,10 +126,7 @@ export const Products = () => {
               </div>
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Brand</p>
-                <Select
-                  value={selectedBrand}
-                  onChange={(event) => setSelectedBrand(event.target.value)}
-                >
+                <Select value={selectedBrand} onChange={(event) => setSelectedBrand(event.target.value)}>
                   {brands.map((brand) => (
                     <option key={brand} value={brand}>
                       {brand}
@@ -154,6 +176,9 @@ export const Products = () => {
           </aside>
 
           <section>
+            {loading ? <p className="mb-4 text-sm text-gray-500">Loading products...</p> : null}
+            {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
+
             <div className="mb-4 text-sm text-gray-500">
               Showing {filteredProducts.length} {filteredProducts.length === 1 ? "item" : "items"}
             </div>

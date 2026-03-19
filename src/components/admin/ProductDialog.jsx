@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Upload, Link as LinkIcon } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
@@ -6,44 +6,60 @@ import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
 import { Textarea } from "../ui/Textarea";
 import { Select } from "../ui/Select";
-import { categories, brands } from "../../data/products";
 
-export const ProductDialog = ({ open, onClose, product, onSave }) => {
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    price: 0,
-    category: "Faucets",
-    brand: "AquaFlow",
-    image: "",
-    quantity: 0,
-    inStock: true,
-    rating: 0,
-    reviews: 0,
-  });
+const getDefaultFormData = (categoryOptions, brandOptions) => ({
+  name: "",
+  description: "",
+  price: 0,
+  category: categoryOptions[0] || "",
+  brand: brandOptions[0] || "",
+  image: "",
+  quantity: 0,
+  inStock: true,
+  rating: 4.5,
+  reviews: 10,
+});
+
+const pickEditableFields = (product, fallback) => ({
+  name: product?.name ?? fallback.name,
+  description: product?.description ?? fallback.description,
+  price: product?.price ?? fallback.price,
+  category: product?.category ?? fallback.category,
+  brand: product?.brand ?? fallback.brand,
+  image: product?.image ?? fallback.image,
+  quantity: product?.quantity ?? fallback.quantity,
+  inStock: product?.inStock ?? fallback.inStock,
+  rating: product?.rating ?? fallback.rating,
+  reviews: product?.reviews ?? fallback.reviews,
+});
+
+export const ProductDialog = ({
+  open,
+  onClose,
+  product,
+  onSave,
+  categoryOptions = [],
+  brandOptions = [],
+}) => {
+  const defaults = useMemo(
+    () => getDefaultFormData(categoryOptions, brandOptions),
+    [categoryOptions, brandOptions]
+  );
+
+  const [formData, setFormData] = useState(defaults);
   const [imageUploadMethod, setImageUploadMethod] = useState("url");
   const [imagePreview, setImagePreview] = useState("");
 
   useEffect(() => {
     if (product) {
-      setFormData(product);
+      setFormData(pickEditableFields(product, defaults));
       setImagePreview(product.image || "");
-    } else {
-      setFormData({
-        name: "",
-        description: "",
-        price: 0,
-        category: "Faucets",
-        brand: "AquaFlow",
-        image: "",
-        quantity: 0,
-        inStock: true,
-        rating: 0,
-        reviews: 0,
-      });
-      setImagePreview("");
+      return;
     }
-  }, [product, open]);
+
+    setFormData(defaults);
+    setImagePreview("");
+  }, [product, open, defaults]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -51,7 +67,12 @@ export const ProductDialog = ({ open, onClose, product, onSave }) => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    onSave(formData);
+    onSave({
+      ...formData,
+      inStock: Boolean(formData.inStock) && Number(formData.quantity) > 0,
+      quantity: Number(formData.quantity) || 0,
+      price: Number(formData.price) || 0,
+    });
   };
 
   const handleFileUpload = (event) => {
@@ -108,12 +129,17 @@ export const ProductDialog = ({ open, onClose, product, onSave }) => {
             <Select
               value={formData.category}
               onChange={(event) => handleChange("category", event.target.value)}
+              required
             >
-              {categories.filter((item) => item !== "All").map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
+              {categoryOptions.length === 0 ? (
+                <option value="">No category available</option>
+              ) : (
+                categoryOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))
+              )}
             </Select>
           </div>
           <div>
@@ -121,12 +147,17 @@ export const ProductDialog = ({ open, onClose, product, onSave }) => {
             <Select
               value={formData.brand}
               onChange={(event) => handleChange("brand", event.target.value)}
+              required
             >
-              {brands.filter((item) => item !== "All").map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
+              {brandOptions.length === 0 ? (
+                <option value="">No brand available</option>
+              ) : (
+                brandOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))
+              )}
             </Select>
           </div>
         </div>
@@ -137,16 +168,20 @@ export const ProductDialog = ({ open, onClose, product, onSave }) => {
             <Input
               type="number"
               step="0.01"
+              min="0"
               value={formData.price}
-              onChange={(event) => handleChange("price", parseFloat(event.target.value))}
+              onChange={(event) => handleChange("price", parseFloat(event.target.value) || 0)}
+              required
             />
           </div>
           <div>
             <Label>Stock quantity</Label>
             <Input
               type="number"
+              min="0"
               value={formData.quantity}
-              onChange={(event) => handleChange("quantity", parseInt(event.target.value, 10))}
+              onChange={(event) => handleChange("quantity", parseInt(event.target.value, 10) || 0)}
+              required
             />
           </div>
         </div>
@@ -228,7 +263,9 @@ export const ProductDialog = ({ open, onClose, product, onSave }) => {
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit">{product ? "Update" : "Add"} product</Button>
+          <Button type="submit" disabled={categoryOptions.length === 0 || brandOptions.length === 0}>
+            {product ? "Update" : "Add"} product
+          </Button>
         </div>
       </form>
     </Modal>

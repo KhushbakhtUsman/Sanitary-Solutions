@@ -1,36 +1,106 @@
-﻿import { useState } from "react";
-import { Plus, Search } from "lucide-react";
-import { products as initialProducts } from "../../data/products";
+import { useEffect, useMemo, useState } from "react";
+import { Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
 import { Card } from "../../components/ui/Card";
 import { Table, TBody, Td, Th, THead } from "../../components/ui/Table";
 import { ProductDialog } from "../../components/admin/ProductDialog";
+import { Modal } from "../../components/ui/Modal";
 import { formatCurrency } from "../../utils/currency";
+import {
+  createProductApi,
+  deleteProductApi,
+  getBrandsApi,
+  getCategoriesApi,
+  getProductsApi,
+  updateProductApi,
+} from "../../services/adminApi";
 
 export const AdminProducts = () => {
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const filteredProducts = products.filter((product) =>
-    `${product.name} ${product.brand}`.toLowerCase().includes(searchQuery.toLowerCase())
+  const categoryOptions = useMemo(() => categories.map((category) => category.name), [categories]);
+  const brandOptions = useMemo(() => brands.map((brand) => brand.name), [brands]);
+
+  const filteredProducts = useMemo(
+    () =>
+      products.filter((product) =>
+        `${product.name} ${product.brand} ${product.category} ${product.description}`
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
+      ),
+    [products, searchQuery]
   );
 
-  const handleSave = (productData) => {
-    if (selectedProduct) {
-      setProducts((prev) =>
-        prev.map((item) => (item.id === selectedProduct.id ? { ...item, ...productData } : item))
-      );
-    } else {
-      setProducts((prev) => [
-        { ...productData, id: String(prev.length + 1), rating: 4.5, reviews: 10 },
-        ...prev,
+  const fetchProductsAndOptions = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const [{ data: productsData }, categoriesData, brandsData] = await Promise.all([
+        getProductsApi({ page: 1, limit: 500 }),
+        getCategoriesApi(),
+        getBrandsApi(),
       ]);
+
+      setProducts(productsData);
+      setCategories(categoriesData);
+      setBrands(brandsData);
+    } catch (apiError) {
+      setError(apiError.message || "Failed to load products.");
+    } finally {
+      setLoading(false);
     }
-    setDialogOpen(false);
-    setSelectedProduct(null);
+  };
+
+  useEffect(() => {
+    fetchProductsAndOptions();
+  }, []);
+
+  const handleSave = async (productData) => {
+    setError("");
+    setFeedback("");
+
+    try {
+      if (selectedProduct) {
+        const updated = await updateProductApi(selectedProduct._id, productData);
+        setProducts((prev) => prev.map((item) => (item._id === selectedProduct._id ? updated : item)));
+        setFeedback("Product updated successfully.");
+      } else {
+        const created = await createProductApi(productData);
+        setProducts((prev) => [created, ...prev]);
+        setFeedback("Product added successfully.");
+      }
+
+      setDialogOpen(false);
+      setSelectedProduct(null);
+    } catch (apiError) {
+      setError(apiError.message || "Failed to save product.");
+    }
+  };
+
+  const handleDelete = async (product) => {
+    const confirmed = window.confirm(`Delete product "${product.name}"?`);
+    if (!confirmed) return;
+
+    setError("");
+    setFeedback("");
+
+    try {
+      await deleteProductApi(product._id);
+      setProducts((prev) => prev.filter((item) => item._id !== product._id));
+      setFeedback("Product deleted successfully.");
+    } catch (apiError) {
+      setError(apiError.message || "Failed to delete product.");
+    }
   };
 
   return (
@@ -38,18 +108,29 @@ export const AdminProducts = () => {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Products</h1>
-          <p className="text-sm text-gray-500">Manage your catalog inventory.</p>
+          <p className="text-sm text-gray-500">
+            Add, view, edit, delete, and search products in your catalog.
+          </p>
         </div>
         <Button
           onClick={() => {
             setSelectedProduct(null);
             setDialogOpen(true);
           }}
+          disabled={categoryOptions.length === 0 || brandOptions.length === 0}
         >
           <Plus className="h-4 w-4" />
           Add product
         </Button>
       </div>
+
+      {categoryOptions.length === 0 || brandOptions.length === 0 ? (
+        <Card className="p-4">
+          <p className="text-sm text-amber-700">
+            Add at least one category and one brand before creating products.
+          </p>
+        </Card>
+      ) : null}
 
       <Card className="p-4">
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
@@ -61,6 +142,10 @@ export const AdminProducts = () => {
             onChange={(event) => setSearchQuery(event.target.value)}
           />
         </div>
+
+        {loading ? <p className="text-sm text-gray-500">Loading products...</p> : null}
+        {feedback ? <p className="mb-4 text-sm text-emerald-600">{feedback}</p> : null}
+        {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
 
         <Table>
           <THead>
@@ -74,7 +159,7 @@ export const AdminProducts = () => {
           </THead>
           <TBody>
             {filteredProducts.map((product) => (
-              <tr key={product.id} className="border-b border-gray-100">
+              <tr key={product._id} className="border-b border-gray-100">
                 <Td>
                   <div>
                     <p className="font-semibold text-gray-900">{product.name}</p>
@@ -85,16 +170,34 @@ export const AdminProducts = () => {
                 <Td>{product.quantity}</Td>
                 <Td>{formatCurrency(product.price)}</Td>
                 <Td>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedProduct(product);
-                      setDialogOpen(true);
-                    }}
-                  >
-                    Edit
-                  </Button>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedProduct(product);
+                        setViewOpen(true);
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                      View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedProduct(product);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button size="sm" variant="danger" onClick={() => handleDelete(product)}>
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </Button>
+                  </div>
                 </Td>
               </tr>
             ))}
@@ -107,7 +210,41 @@ export const AdminProducts = () => {
         onClose={() => setDialogOpen(false)}
         product={selectedProduct}
         onSave={handleSave}
+        categoryOptions={categoryOptions}
+        brandOptions={brandOptions}
       />
+
+      <Modal
+        open={viewOpen}
+        onClose={() => setViewOpen(false)}
+        title={selectedProduct?.name || "Product details"}
+        description="Product details and catalog information."
+      >
+        {selectedProduct ? (
+          <div className="space-y-4 text-sm text-gray-700">
+            <img
+              src={selectedProduct.image}
+              alt={selectedProduct.name}
+              className="h-56 w-full rounded-xl object-cover"
+            />
+            <p>
+              <span className="font-semibold">Category:</span> {selectedProduct.category}
+            </p>
+            <p>
+              <span className="font-semibold">Brand:</span> {selectedProduct.brand}
+            </p>
+            <p>
+              <span className="font-semibold">Price:</span> {formatCurrency(selectedProduct.price)}
+            </p>
+            <p>
+              <span className="font-semibold">Stock:</span> {selectedProduct.quantity}
+            </p>
+            <p>
+              <span className="font-semibold">Description:</span> {selectedProduct.description}
+            </p>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 };

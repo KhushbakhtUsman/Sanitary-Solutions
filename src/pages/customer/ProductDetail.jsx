@@ -1,21 +1,49 @@
-﻿import { Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { ShoppingCart, Star } from "lucide-react";
-import { products } from "../../data/products";
 import { ImageWithFallback } from "../../components/common/ImageWithFallback";
 import { Button } from "../../components/ui/Button";
 import { useCart } from "../../contexts/CartContext";
 import { formatCurrency } from "../../utils/currency";
+import { getStoreProductByIdApi } from "../../services/storeApi";
 
 export const ProductDetail = () => {
   const { id } = useParams();
   const { addToCart } = useCart();
-  const product = products.find((item) => item.id === id);
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  if (!product) {
+  useEffect(() => {
+    const loadProduct = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const data = await getStoreProductByIdApi(id);
+        setProduct(data);
+      } catch (apiError) {
+        setError(apiError.message || "Failed to load product.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
+        <p className="text-sm text-gray-500">Loading product...</p>
+      </div>
+    );
+  }
+
+  if (error || !product) {
     return (
       <div className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
         <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center">
-          <p className="text-gray-600">Product not found.</p>
+          <p className="text-gray-600">{error || "Product not found."}</p>
           <Link to="/products">
             <Button className="mt-4">Back to products</Button>
           </Link>
@@ -54,11 +82,7 @@ export const ProductDetail = () => {
             <p className="mt-2 text-sm text-gray-500">
               Stock status: {product.inStock ? "Available" : "Out of stock"}
             </p>
-            <Button
-              className="mt-4 w-full"
-              onClick={() => addToCart(product)}
-              disabled={!product.inStock}
-            >
+            <Button className="mt-4 w-full" onClick={() => addToCart(product)} disabled={!product.inStock}>
               <ShoppingCart className="h-4 w-4" />
               Add to cart
             </Button>

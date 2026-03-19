@@ -1,19 +1,57 @@
-﻿import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Label } from "../../components/ui/Label";
 import { Button } from "../../components/ui/Button";
 import { useCart } from "../../contexts/CartContext";
 import { formatCurrency } from "../../utils/currency";
+import { createOrderApi } from "../../services/storeApi";
+
+const INITIAL_FORM = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  address: "",
+  city: "",
+  postalCode: "",
+};
 
 export const Checkout = () => {
-  const { cart, getCartTotal, clearCart } = useCart();
+  const { cart, cartLoading, getCartTotal, clearCart, setCartSyncEmail } = useCart();
+  const [formData, setFormData] = useState(INITIAL_FORM);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (event) => {
+  const isCartEmpty = useMemo(() => cart.length === 0, [cart]);
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    setSubmitted(true);
-    clearCart();
+    if (isCartEmpty || cartLoading) return;
+
+    setSubmitting(true);
+    setError("");
+
+    try {
+      await setCartSyncEmail(formData.email, { mergeWithRemote: false });
+
+      await createOrderApi({
+        ...formData,
+        items: cart.map((item) => ({
+          productId: item.product._id || item.product.id,
+          quantity: item.quantity,
+        })),
+      });
+
+      setSubmitted(true);
+      await clearCart();
+      setFormData(INITIAL_FORM);
+    } catch (apiError) {
+      setError(apiError.message || "Failed to place order.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -38,37 +76,78 @@ export const Checkout = () => {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>First name</Label>
-                <Input required placeholder="Ayesha" />
+                <Input
+                  required
+                  placeholder="Ayesha"
+                  value={formData.firstName}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, firstName: event.target.value }))
+                  }
+                />
               </div>
               <div>
                 <Label>Last name</Label>
-                <Input required placeholder="Khan" />
+                <Input
+                  required
+                  placeholder="Khan"
+                  value={formData.lastName}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, lastName: event.target.value }))}
+                />
               </div>
             </div>
             <div>
               <Label>Email</Label>
-              <Input type="email" required placeholder="ayesha@email.com" />
+              <Input
+                type="email"
+                required
+                placeholder="ayesha@email.com"
+                value={formData.email}
+                onChange={(event) => setFormData((prev) => ({ ...prev, email: event.target.value }))}
+              />
             </div>
             <div>
               <Label>Phone</Label>
-              <Input required placeholder="+92 300 123 4567" />
+              <Input
+                required
+                placeholder="+92 300 123 4567"
+                value={formData.phone}
+                onChange={(event) => setFormData((prev) => ({ ...prev, phone: event.target.value }))}
+              />
             </div>
             <div>
               <Label>Delivery address</Label>
-              <Input required placeholder="House 10, DHA Phase 5, Karachi" />
+              <Input
+                required
+                placeholder="House 10, DHA Phase 5, Karachi"
+                value={formData.address}
+                onChange={(event) => setFormData((prev) => ({ ...prev, address: event.target.value }))}
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>City</Label>
-                <Input required placeholder="Karachi" />
+                <Input
+                  required
+                  placeholder="Karachi"
+                  value={formData.city}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, city: event.target.value }))}
+                />
               </div>
               <div>
                 <Label>Postal code</Label>
-                <Input required placeholder="75500" />
+                <Input
+                  required
+                  placeholder="75500"
+                  value={formData.postalCode}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, postalCode: event.target.value }))
+                  }
+                />
               </div>
             </div>
-            <Button type="submit" className="w-full">
-              Confirm order
+            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            <Button type="submit" className="w-full" disabled={submitting || isCartEmpty || cartLoading}>
+              {submitting ? "Placing order..." : "Confirm order"}
             </Button>
           </form>
         </Card>
@@ -87,6 +166,12 @@ export const Checkout = () => {
             <div className="border-t border-gray-200 pt-3 text-base font-semibold text-gray-900">
               Total: {formatCurrency(getCartTotal())}
             </div>
+            {isCartEmpty ? (
+              <p className="text-sm text-amber-700">Your cart is empty. Add products before checkout.</p>
+            ) : null}
+            {cartLoading ? (
+              <p className="text-sm text-gray-500">Loading your latest cart...</p>
+            ) : null}
           </div>
         </Card>
       </div>

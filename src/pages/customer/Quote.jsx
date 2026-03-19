@@ -1,16 +1,39 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Label } from "../../components/ui/Label";
 import { Textarea } from "../../components/ui/Textarea";
 import { Button } from "../../components/ui/Button";
+import { createQuoteRequestApi } from "../../services/storeApi";
+
+const INITIAL_FORM = {
+  name: "",
+  email: "",
+  phone: "",
+  projectType: "",
+  productsNeeded: "",
+};
 
 export const Quote = () => {
+  const [formData, setFormData] = useState(INITIAL_FORM);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    setSubmitted(true);
+    setSubmitting(true);
+    setError("");
+
+    try {
+      await createQuoteRequestApi(formData);
+      setSubmitted(true);
+      setFormData(INITIAL_FORM);
+    } catch (apiError) {
+      setError(apiError.message || "Failed to submit quote request.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -32,28 +55,59 @@ export const Quote = () => {
             <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
               <div>
                 <Label>Full name</Label>
-                <Input required placeholder="Muhammad Usman" />
+                <Input
+                  required
+                  placeholder="Muhammad Usman"
+                  value={formData.name}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
+                />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <Label>Email</Label>
-                  <Input type="email" required placeholder="usman@email.com" />
+                  <Input
+                    type="email"
+                    required
+                    placeholder="usman@email.com"
+                    value={formData.email}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, email: event.target.value }))}
+                  />
                 </div>
                 <div>
                   <Label>Phone</Label>
-                  <Input required placeholder="+92 333 444 7788" />
+                  <Input
+                    required
+                    placeholder="+92 333 444 7788"
+                    value={formData.phone}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, phone: event.target.value }))}
+                  />
                 </div>
               </div>
               <div>
                 <Label>Project type</Label>
-                <Input required placeholder="Residential renovation" />
+                <Input
+                  required
+                  placeholder="Residential renovation"
+                  value={formData.projectType}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, projectType: event.target.value }))
+                  }
+                />
               </div>
               <div>
                 <Label>Products needed</Label>
-                <Textarea required placeholder="List items, quantities, and preferred brands..." />
+                <Textarea
+                  required
+                  placeholder="List items, quantities, and preferred brands..."
+                  value={formData.productsNeeded}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, productsNeeded: event.target.value }))
+                  }
+                />
               </div>
-              <Button type="submit" className="w-full">
-                Submit request
+              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting ? "Submitting..." : "Submit request"}
               </Button>
             </form>
           </Card>

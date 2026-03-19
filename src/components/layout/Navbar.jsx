@@ -66,11 +66,6 @@ export const Navbar = () => {
               </Button>
             </Link>
 
-            <Link to="/admin/login" className="hidden md:block">
-              <Button variant="ghost" size="icon">
-                <Shield className="h-5 w-5" />
-              </Button>
-            </Link>
 
             {isAuthenticated ? (
               <div className="hidden items-center gap-2 md:flex">

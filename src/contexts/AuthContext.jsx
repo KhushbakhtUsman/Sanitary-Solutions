@@ -1,16 +1,24 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { clearAuthToken, getAuthToken, setAuthToken } from "../services/apiClient";
+import { changePasswordApi, getCurrentUserApi, loginAdminApi } from "../services/adminApi";
 
 const AuthContext = createContext(null);
 
 const STORAGE_KEY = "sanitarySolutionsUser";
 
-const users = [{ role: "admin", username: "admin", password: "admin123", name: "Admin" }];
+const getStoredUser = () => {
+  try {
+    const value = localStorage.getItem(STORAGE_KEY);
+    return value ? JSON.parse(value) : null;
+  } catch (error) {
+    return null;
+  }
+};
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [user, setUser] = useState(() => getStoredUser());
+  const [token, setToken] = useState(() => getAuthToken());
+  const [authLoading, setAuthLoading] = useState(Boolean(getAuthToken()));
 
   useEffect(() => {
     if (user) {
@@ -20,28 +28,71 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
-  const login = (role, username, password) => {
-    const match = users.find(
-      (u) => u.role === role && u.username === username && u.password === password
-    );
-    if (match) {
-      setUser({ role: match.role, name: match.name, username: match.username });
-      return { success: true, role: match.role };
+  useEffect(() => {
+    const syncCurrentUser = async () => {
+      if (!token) {
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        const data = await getCurrentUserApi();
+        setUser(data.user);
+      } catch (error) {
+        clearAuthToken();
+        setToken(null);
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    syncCurrentUser();
+  }, [token]);
+
+  const login = async (role, username, password) => {
+    try {
+      if (role !== "admin") {
+        return { success: false, message: "Only admin login is supported." };
+      }
+
+      const data = await loginAdminApi({ username, password });
+      setAuthToken(data.token);
+      setToken(data.token);
+      setUser(data.user);
+      return { success: true, role: data.user.role };
+    } catch (error) {
+      return { success: false, message: error.message || "Login failed." };
     }
-    return { success: false };
   };
 
-  const logout = () => setUser(null);
+  const changeAdminPassword = async (currentPassword, newPassword) => {
+    try {
+      await changePasswordApi({ currentPassword, newPassword });
+      return { success: true, message: "Admin password changed successfully." };
+    } catch (error) {
+      return { success: false, message: error.message || "Failed to change password." };
+    }
+  };
+
+  const logout = () => {
+    clearAuthToken();
+    setToken(null);
+    setUser(null);
+  };
 
   const value = useMemo(
     () => ({
       user,
-      isAuthenticated: Boolean(user),
+      token,
+      authLoading,
+      isAuthenticated: Boolean(user && token),
       login,
+      changeAdminPassword,
       logout,
       hasRole: (role) => user?.role === role,
     }),
-    [user]
+    [user, token, authLoading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

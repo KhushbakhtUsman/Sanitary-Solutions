@@ -1,4 +1,5 @@
-﻿import { Modal } from "../ui/Modal";
+import { Modal } from "../ui/Modal";
+import { formatCurrency } from "../../utils/currency";
 
 export const QuoteDetailDialog = ({ open, onClose, quote }) => (
   <Modal
@@ -20,6 +21,9 @@ export const QuoteDetailDialog = ({ open, onClose, quote }) => (
         </p>
         <p>
           <span className="font-semibold">Products:</span> {quote.products}
+        </p>
+        <p>
+          <span className="font-semibold">Total amount:</span> {formatCurrency(quote.total || 0)}
         </p>
         <p>
           <span className="font-semibold">Status:</span> {quote.status}

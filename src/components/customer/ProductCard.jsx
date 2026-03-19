@@ -8,6 +8,7 @@ import { formatCurrency } from "../../utils/currency";
 
 export const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
+  const productId = product.id || product._id;
 
   const handleAddToCart = (event) => {
     event.preventDefault();
@@ -16,7 +17,7 @@ export const ProductCard = ({ product }) => {
   };
 
   return (
-    <Link to={`/products/${product.id}`} className="group">
+    <Link to={`/products/${productId}`} className="group">
       <Card className="h-full overflow-hidden transition hover:-translate-y-1 hover:shadow-lg">
         <CardContent className="p-4">
           <div className="aspect-square overflow-hidden rounded-2xl bg-gray-100">

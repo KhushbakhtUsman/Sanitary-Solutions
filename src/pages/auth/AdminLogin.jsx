@@ -10,18 +10,21 @@ export const AdminLogin = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    const result = login("admin", username, password);
+    setLoading(true);
+    const result = await login("admin", username, password);
+    setLoading(false);
     if (result.success) {
       const redirectTo = location.state?.from?.pathname || "/admin";
       navigate(redirectTo);
     } else {
-      setError("Invalid admin credentials.");
+      setError(result.message || "Invalid admin credentials.");
     }
   };
 
@@ -48,12 +51,12 @@ export const AdminLogin = () => {
             </div>
             {error ? <p className="text-sm text-red-500">{error}</p> : null}
             <Button type="submit" className="w-full">
-              Sign in
+              {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
 
           <div className="mt-4 rounded-xl bg-blue-50 p-3 text-xs text-blue-700">
-            Demo credentials: admin / admin123
+            Default credentials: admin / admin123 (unless changed in settings).
           </div>
         </Card>
       </div>

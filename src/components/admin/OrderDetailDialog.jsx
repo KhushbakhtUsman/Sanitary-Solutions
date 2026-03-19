@@ -1,4 +1,4 @@
-﻿import { Modal } from "../ui/Modal";
+import { Modal } from "../ui/Modal";
 import { formatCurrency } from "../../utils/currency";
 
 export const OrderDetailDialog = ({ open, onClose, order }) => (
@@ -23,10 +23,16 @@ export const OrderDetailDialog = ({ open, onClose, order }) => (
           <span className="font-semibold">Address:</span> {order.address}
         </p>
         <p>
-          <span className="font-semibold">Total:</span> {formatCurrency(order.total)}
+          <span className="font-semibold">Items:</span> {order.items}
+        </p>
+        <p>
+          <span className="font-semibold">Total amount:</span> {formatCurrency(order.total)}
         </p>
         <p>
           <span className="font-semibold">Status:</span> {order.status}
+        </p>
+        <p>
+          <span className="font-semibold">Date:</span> {order.date}
         </p>
       </div>
     ) : null}

@@ -1,11 +1,39 @@
 
-  # Sanitary Solutions App
+# Sanitary Solutions App
 
-  This is a code bundle for Sanitary Solutions App. The original project is available at https://www.figma.com/design/KbSlA7ku6E76qSAQnugz4S/Sanitary-Solutions-App.
+This project contains:
 
-  ## Running the code
+- React frontend (Vite) at repository root
+- Node.js + Express + MongoDB backend (MVC) in [`backend/`](./backend)
 
-  Run `npm i` to install the dependencies.
+Original design reference:  
+https://www.figma.com/design/KbSlA7ku6E76qSAQnugz4S/Sanitary-Solutions-App
 
-  Run `npm run dev` to start the development server.
+## Frontend
+
+```bash
+npm install
+npm run dev
+```
+
+## Backend
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Seed backend data:
+
+```bash
+npm run seed
+```
+
+Reset and reseed:
+
+```bash
+npm run seed:reset
+```
   

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
 const customerSchema = new mongoose.Schema(
   {
@@ -34,6 +35,16 @@ const customerSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    password: {
+      type: String,
+      minlength: 6,
+      select: false,
+      default: null,
+    },
+    hasAccount: {
+      type: Boolean,
+      default: false,
+    },
     totalOrders: {
       type: Number,
       default: 0,
@@ -53,5 +64,27 @@ const customerSchema = new mongoose.Schema(
 );
 
 customerSchema.index({ name: "text", email: "text" });
+
+customerSchema.pre("save", async function hashPassword(next) {
+  if (!this.isModified("password")) {
+    return next();
+  }
+
+  if (!this.password) {
+    this.hasAccount = false;
+    return next();
+  }
+
+  this.password = await bcrypt.hash(this.password, 10);
+  this.hasAccount = true;
+  return next();
+});
+
+customerSchema.methods.comparePassword = function comparePassword(candidatePassword) {
+  if (!this.password) {
+    return false;
+  }
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 export const Customer = mongoose.model("Customer", customerSchema);

@@ -2,7 +2,7 @@
 import { useAuth } from "../../contexts/AuthContext";
 
 export const ProtectedRoute = ({ allowedRoles, redirectTo = "/login", children }) => {
-  const { isAuthenticated, user, authLoading } = useAuth();
+  const { isAuthenticated, isRoleAuthenticated, authLoading } = useAuth();
   const location = useLocation();
 
   if (authLoading) {
@@ -13,12 +13,13 @@ export const ProtectedRoute = ({ allowedRoles, redirectTo = "/login", children }
     );
   }
 
-  if (!isAuthenticated) {
+  if (allowedRoles?.length) {
+    const hasAllowedSession = allowedRoles.some((role) => isRoleAuthenticated(role));
+    if (!hasAllowedSession) {
+      return <Navigate to={redirectTo} replace state={{ from: location }} />;
+    }
+  } else if (!isAuthenticated) {
     return <Navigate to={redirectTo} replace state={{ from: location }} />;
-  }
-
-  if (allowedRoles && !allowedRoles.includes(user?.role)) {
-    return <Navigate to="/" replace />;
   }
 
   return children;

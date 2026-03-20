@@ -22,6 +22,22 @@ export const QuoteDetailDialog = ({ open, onClose, quote }) => (
         <p>
           <span className="font-semibold">Products:</span> {quote.products}
         </p>
+        {(quote.quoteItems || []).length > 0 ? (
+          <div>
+            <p className="font-semibold">Selected products:</p>
+            <div className="mt-1 space-y-1">
+              {quote.quoteItems.map((item, index) => (
+                <p key={`${item.productName}-${index}`}>
+                  {item.productName} ({item.brand || "No brand"}) x {item.quantity}
+                </p>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p>
+            <span className="font-semibold">Products detail:</span> {quote.productsNeeded}
+          </p>
+        )}
         <p>
           <span className="font-semibold">Total amount:</span> {formatCurrency(quote.total || 0)}
         </p>

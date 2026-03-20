@@ -49,11 +49,6 @@ export const ProductCard = ({ product }) => {
             </h3>
             <p className="text-sm text-gray-600 line-clamp-2">{product.description}</p>
 
-            <div className="flex items-center gap-1">
-              <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-              <span className="text-sm text-gray-700">{product.rating}</span>
-              <span className="text-xs text-gray-400">({product.reviews})</span>
-            </div>
           </div>
         </CardContent>
 

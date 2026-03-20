@@ -1,15 +1,52 @@
 export const AUTH_TOKEN_KEY = "sanitarySolutionsToken";
+export const ADMIN_AUTH_TOKEN_KEY = "sanitarySolutionsAdminToken";
+export const CUSTOMER_AUTH_TOKEN_KEY = "sanitarySolutionsCustomerToken";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1";
 
-export const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
+const getTokenKeyByRole = (role = "admin") =>
+  role === "customer" ? CUSTOMER_AUTH_TOKEN_KEY : ADMIN_AUTH_TOKEN_KEY;
 
-export const setAuthToken = (token) => {
-  localStorage.setItem(AUTH_TOKEN_KEY, token);
+const migrateLegacyToken = (role = "admin") => {
+  if (typeof window === "undefined") return null;
+  const legacy = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (!legacy) return null;
+
+  const roleKey = getTokenKeyByRole(role);
+  if (!localStorage.getItem(roleKey) && role === "admin") {
+    localStorage.setItem(roleKey, legacy);
+  }
+
+  return legacy;
 };
 
-export const clearAuthToken = () => {
-  localStorage.removeItem(AUTH_TOKEN_KEY);
+export const getAuthToken = (role = "admin") => {
+  const roleKey = getTokenKeyByRole(role);
+  const roleToken = localStorage.getItem(roleKey);
+  if (roleToken) return roleToken;
+
+  if (role === "admin") {
+    return migrateLegacyToken("admin");
+  }
+
+  return null;
+};
+
+export const setAuthToken = (token, role = "admin") => {
+  localStorage.setItem(getTokenKeyByRole(role), token);
+  if (role === "admin") {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+  }
+};
+
+export const clearAuthToken = (role) => {
+  if (!role || role === "admin") {
+    localStorage.removeItem(ADMIN_AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
+  if (!role || role === "customer") {
+    localStorage.removeItem(CUSTOMER_AUTH_TOKEN_KEY);
+  }
 };
 
 const readJsonSafely = async (response) => {
@@ -20,7 +57,10 @@ const readJsonSafely = async (response) => {
   }
 };
 
-export const apiRequest = async (path, { method = "GET", body, auth = false, headers } = {}) => {
+export const apiRequest = async (
+  path,
+  { method = "GET", body, auth = false, authRole = "admin", headers } = {}
+) => {
   const requestHeaders = {
     ...(headers || {}),
   };
@@ -30,9 +70,9 @@ export const apiRequest = async (path, { method = "GET", body, auth = false, hea
   }
 
   if (auth) {
-    const token = getAuthToken();
+    const token = getAuthToken(authRole);
     if (!token) {
-      throw new Error("Authentication required");
+      throw new Error(`${authRole === "customer" ? "Customer" : "Admin"} authentication required`);
     }
     requestHeaders.Authorization = `Bearer ${token}`;
   }

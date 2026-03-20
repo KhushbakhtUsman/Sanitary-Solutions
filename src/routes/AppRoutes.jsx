@@ -19,6 +19,10 @@ import { Reports } from "../pages/admin/Reports";
 import { Settings } from "../pages/admin/Settings";
 import { Dashboard } from "../pages/admin/Dashboard";
 import { AdminLogin } from "../pages/auth/AdminLogin";
+import { CustomerLogin } from "../pages/auth/CustomerLogin";
+import { CustomerSignup } from "../pages/auth/CustomerSignup";
+import { OrderTracking } from "../pages/customer/OrderTracking";
+import { MyAccount } from "../pages/customer/MyAccount";
 import { NotFound } from "../pages/NotFound";
 
 export const AppRoutes = () => (
@@ -28,9 +32,34 @@ export const AppRoutes = () => (
       <Route path="products" element={<Products />} />
       <Route path="products/:id" element={<ProductDetail />} />
       <Route path="cart" element={<Cart />} />
-      <Route path="checkout" element={<Checkout />} />
+      <Route
+        path="checkout"
+        element={
+          <ProtectedRoute allowedRoles={["customer"]} redirectTo="/login">
+            <Checkout />
+          </ProtectedRoute>
+        }
+      />
       <Route path="quote" element={<Quote />} />
       <Route path="contact" element={<Contact />} />
+      <Route path="login" element={<CustomerLogin />} />
+      <Route path="signup" element={<CustomerSignup />} />
+      <Route
+        path="orders/track"
+        element={
+          <ProtectedRoute allowedRoles={["customer"]} redirectTo="/login">
+            <OrderTracking />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="account"
+        element={
+          <ProtectedRoute allowedRoles={["customer"]} redirectTo="/login">
+            <MyAccount />
+          </ProtectedRoute>
+        }
+      />
     </Route>
     <Route path="/admin/login" element={<AdminLogin />} />
 

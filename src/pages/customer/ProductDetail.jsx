@@ -67,11 +67,7 @@ export const ProductDetail = () => {
           <div>
             <p className="text-sm font-semibold text-blue-600">{product.category}</p>
             <h1 className="text-3xl font-semibold text-gray-900">{product.name}</h1>
-            <div className="mt-2 flex items-center gap-2">
-              <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-              <span className="text-sm text-gray-700">{product.rating}</span>
-              <span className="text-xs text-gray-400">({product.reviews} reviews)</span>
-            </div>
+           
           </div>
 
           <p className="text-gray-600">{product.description}</p>

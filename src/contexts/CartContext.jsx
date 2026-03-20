@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { clearCartApi, getCartApi, saveCartApi } from "../services/storeApi";
 
 const CartContext = createContext(null);
@@ -94,14 +94,37 @@ export const CartProvider = ({ children }) => {
   const [cartLoading, setCartLoading] = useState(true);
   const [cartError, setCartError] = useState("");
 
-  const syncItemsToBackend = async (items, emailOverride = syncEmail) => {
+  const cartRef = useRef([]);
+  const syncEmailRef = useRef(syncEmail);
+  const mutationQueueRef = useRef(Promise.resolve());
+
+  const setCartState = (items) => {
+    cartRef.current = items;
+    setCart(items);
+  };
+
+  const enqueueCartTask = (task) => {
+    const run = mutationQueueRef.current.then(task);
+    mutationQueueRef.current = run.catch(() => {});
+    return run;
+  };
+
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
+
+  useEffect(() => {
+    syncEmailRef.current = syncEmail;
+  }, [syncEmail]);
+
+  const syncItemsToBackend = async (items, emailOverride = syncEmailRef.current) => {
     try {
       const response = await saveCartApi({
         sessionId,
         customerEmail: emailOverride || undefined,
         items: buildItemsPayload(items),
       });
-      setCart(mapServerItems(response?.items || []));
+      setCartState(mapServerItems(response?.items || []));
       setCartError("");
       return true;
     } catch (error) {
@@ -113,16 +136,16 @@ export const CartProvider = ({ children }) => {
   useEffect(() => {
     let cancelled = false;
 
-    const loadCart = async () => {
+    enqueueCartTask(async () => {
       try {
         setCartLoading(true);
         setCartError("");
         const response = await getCartApi({
           sessionId,
-          customerEmail: syncEmail || undefined,
+          customerEmail: syncEmailRef.current || undefined,
         });
         if (cancelled) return;
-        setCart(mapServerItems(response?.items || []));
+        setCartState(mapServerItems(response?.items || []));
       } catch (error) {
         if (cancelled) return;
         setCartError(error.message || "Unable to load cart.");
@@ -131,9 +154,7 @@ export const CartProvider = ({ children }) => {
           setCartLoading(false);
         }
       }
-    };
-
-    loadCart();
+    });
 
     return () => {
       cancelled = true;
@@ -147,22 +168,21 @@ export const CartProvider = ({ children }) => {
     const quantity = Number.parseInt(quantityToAdd, 10);
     if (!Number.isInteger(quantity) || quantity <= 0) return;
 
-    let nextItems = [];
-    setCart((previous) => {
+    await enqueueCartTask(async () => {
+      const previous = cartRef.current;
       const existing = previous.find((item) => item.product.id === normalizedProduct.id);
-      if (existing) {
-        nextItems = previous.map((item) =>
-          item.product.id === normalizedProduct.id
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
-      } else {
-        nextItems = [...previous, { product: normalizedProduct, quantity }];
-      }
-      return nextItems;
-    });
 
-    await syncItemsToBackend(nextItems);
+      const nextItems = existing
+        ? previous.map((item) =>
+            item.product.id === normalizedProduct.id
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          )
+        : [...previous, { product: normalizedProduct, quantity }];
+
+      setCartState(nextItems);
+      await syncItemsToBackend(nextItems);
+    });
   };
 
   const updateQuantity = async (productId, quantity) => {
@@ -177,78 +197,83 @@ export const CartProvider = ({ children }) => {
       return;
     }
 
-    let nextItems = [];
-    setCart((previous) => {
-      nextItems = previous.map((item) =>
+    await enqueueCartTask(async () => {
+      const previous = cartRef.current;
+      const nextItems = previous.map((item) =>
         item.product.id === normalizedProductId ? { ...item, quantity: nextQuantity } : item
       );
-      return nextItems;
-    });
 
-    await syncItemsToBackend(nextItems);
+      setCartState(nextItems);
+      await syncItemsToBackend(nextItems);
+    });
   };
 
   const removeFromCart = async (productId) => {
     const normalizedProductId = String(productId || "");
     if (!normalizedProductId) return;
 
-    let nextItems = [];
-    setCart((previous) => {
-      nextItems = previous.filter((item) => item.product.id !== normalizedProductId);
-      return nextItems;
+    await enqueueCartTask(async () => {
+      const previous = cartRef.current;
+      const nextItems = previous.filter((item) => item.product.id !== normalizedProductId);
+
+      setCartState(nextItems);
+      await syncItemsToBackend(nextItems);
+    });
+  };
+
+  const clearCart = async () =>
+    enqueueCartTask(async () => {
+      const previous = cartRef.current;
+      setCartState([]);
+
+      try {
+        const response = await clearCartApi({
+          sessionId,
+          customerEmail: syncEmailRef.current || undefined,
+        });
+        setCartState(mapServerItems(response?.items || []));
+        setCartError("");
+        return true;
+      } catch (error) {
+        setCartState(previous);
+        setCartError(error.message || "Unable to clear cart.");
+        return false;
+      }
     });
 
-    await syncItemsToBackend(nextItems);
-  };
+  const setCartSyncEmail = async (email, options = {}) =>
+    enqueueCartTask(async () => {
+      const { mergeWithRemote = true } = options;
+      const normalizedEmail = normalizeEmail(email);
 
-  const clearCart = async () => {
-    setCart([]);
+      writeStoredSyncEmail(normalizedEmail);
+      setSyncEmail(normalizedEmail);
+      syncEmailRef.current = normalizedEmail;
 
-    try {
-      const response = await clearCartApi({
-        sessionId,
-        customerEmail: syncEmail || undefined,
-      });
-      setCart(mapServerItems(response?.items || []));
-      setCartError("");
-      return true;
-    } catch (error) {
-      setCartError(error.message || "Unable to clear cart.");
-      return false;
-    }
-  };
-
-  const setCartSyncEmail = async (email, options = {}) => {
-    const { mergeWithRemote = true } = options;
-    const normalizedEmail = normalizeEmail(email);
-
-    writeStoredSyncEmail(normalizedEmail);
-    setSyncEmail(normalizedEmail);
-
-    if (!normalizedEmail) {
-      await syncItemsToBackend(cart, null);
-      return { success: true, email: null };
-    }
-
-    try {
-      if (mergeWithRemote) {
-        const response = await getCartApi({
-          sessionId,
-          customerEmail: normalizedEmail,
-        });
-        setCart(mapServerItems(response?.items || []));
-      } else {
-        await syncItemsToBackend(cart, normalizedEmail);
+      if (!normalizedEmail) {
+        await syncItemsToBackend(cartRef.current, null);
+        return { success: true, email: null };
       }
 
-      setCartError("");
-      return { success: true, email: normalizedEmail };
-    } catch (error) {
-      const message = error.message || "Unable to sync cart with email.";
-      setCartError(message);
-      return { success: false, email: normalizedEmail, error: message };
-    }
-  };
+      try {
+        if (mergeWithRemote) {
+          const response = await getCartApi({
+            sessionId,
+            customerEmail: normalizedEmail,
+          });
+          setCartState(mapServerItems(response?.items || []));
+        } else {
+          await syncItemsToBackend(cartRef.current, normalizedEmail);
+        }
+
+        setCartError("");
+        return { success: true, email: normalizedEmail };
+      } catch (error) {
+        const message = error.message || "Unable to sync cart with email.";
+        setCartError(message);
+        return { success: false, email: normalizedEmail, error: message };
+      }
+    });
 
   const getCartTotal = () =>
     cart.reduce((total, item) => total + Number(item.product.price || 0) * item.quantity, 0);

@@ -57,9 +57,74 @@ export const createContactMessageApi = async (payload) => {
 export const createOrderApi = async (payload) => {
   const response = await apiRequest("/orders", {
     method: "POST",
+    auth: true,
+    authRole: "customer",
     body: payload,
   });
   return unwrap(response);
+};
+
+export const customerSignupApi = async (payload) => {
+  const response = await apiRequest("/customer-auth/signup", {
+    method: "POST",
+    body: payload,
+  });
+  return unwrap(response);
+};
+
+export const customerLoginApi = async ({ email, password }) => {
+  const response = await apiRequest("/customer-auth/login", {
+    method: "POST",
+    body: { email, password },
+  });
+  return unwrap(response);
+};
+
+export const getCurrentCustomerApi = async () => {
+  const response = await apiRequest("/customer-auth/me", { auth: true, authRole: "customer" });
+  return unwrap(response);
+};
+
+export const updateCurrentCustomerApi = async (payload) => {
+  const response = await apiRequest("/customer-auth/me", {
+    method: "PATCH",
+    auth: true,
+    authRole: "customer",
+    body: payload,
+  });
+  return unwrap(response);
+};
+
+export const changeCustomerPasswordApi = async ({ currentPassword, newPassword }) => {
+  const response = await apiRequest("/customer-auth/change-password", {
+    method: "POST",
+    auth: true,
+    authRole: "customer",
+    body: { currentPassword, newPassword },
+  });
+  return response;
+};
+
+export const getMyOrdersApi = async (params = {}) => {
+  const response = await apiRequest(`/orders/my${buildQueryString(params)}`, {
+    auth: true,
+    authRole: "customer",
+  });
+  return {
+    data: unwrap(response) || [],
+    meta: response?.meta || null,
+  };
+};
+
+export const getMyQuotesApi = async (params = {}) => {
+  const response = await apiRequest(`/quotes/my${buildQueryString(params)}`, {
+    auth: true,
+    authRole: "customer",
+  });
+  return {
+    data: unwrap(response) || [],
+    meta: response?.meta || null,
+  };
 };
 
 export const getPublicStoreSettingsApi = async () => {

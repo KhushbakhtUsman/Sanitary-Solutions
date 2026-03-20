@@ -1,5 +1,6 @@
 import { Router } from "express";
 import authRoutes from "./auth.routes.js";
+import customerAuthRoutes from "./customerAuth.routes.js";
 import productRoutes from "./product.routes.js";
 import categoryRoutes from "./category.routes.js";
 import brandRoutes from "./brand.routes.js";
@@ -23,6 +24,7 @@ router.get("/health", (req, res) => {
 });
 
 router.use("/auth", authRoutes);
+router.use("/customer-auth", customerAuthRoutes);
 router.use("/products", productRoutes);
 router.use("/categories", categoryRoutes);
 router.use("/brands", brandRoutes);

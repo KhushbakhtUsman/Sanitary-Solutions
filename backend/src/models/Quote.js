@@ -1,5 +1,43 @@
 import mongoose from "mongoose";
 
+const quoteItemSchema = new mongoose.Schema(
+  {
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: false,
+    },
+    productName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    brand: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    unitPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    lineTotal: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+  },
+  { _id: false }
+);
+
 const quoteSchema = new mongoose.Schema(
   {
     quoteNumber: {
@@ -34,6 +72,10 @@ const quoteSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    quoteItems: {
+      type: [quoteItemSchema],
+      default: [],
+    },
     productsCount: {
       type: Number,
       default: 0,
@@ -54,5 +96,6 @@ const quoteSchema = new mongoose.Schema(
 );
 
 quoteSchema.index({ status: 1, createdAt: -1 });
+quoteSchema.index({ email: 1, createdAt: -1 });
 
 export const Quote = mongoose.model("Quote", quoteSchema);

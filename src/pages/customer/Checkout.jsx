@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Label } from "../../components/ui/Label";
 import { Button } from "../../components/ui/Button";
 import { useCart } from "../../contexts/CartContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { formatCurrency } from "../../utils/currency";
 import { createOrderApi } from "../../services/storeApi";
 
@@ -19,12 +20,31 @@ const INITIAL_FORM = {
 
 export const Checkout = () => {
   const { cart, cartLoading, getCartTotal, clearCart, setCartSyncEmail } = useCart();
+  const { user } = useAuth();
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   const isCartEmpty = useMemo(() => cart.length === 0, [cart]);
+
+  useEffect(() => {
+    if (user?.role !== "customer") return;
+
+    const [firstName = "", ...rest] = (user.name || "").trim().split(" ");
+    const lastName = rest.join(" ");
+
+    setFormData((prev) => ({
+      ...prev,
+      firstName: prev.firstName || firstName,
+      lastName: prev.lastName || lastName,
+      email: prev.email || user.email || "",
+      phone: prev.phone || user.phone || "",
+      address: prev.address || user.address || "",
+      city: prev.city || user.city || "",
+      postalCode: prev.postalCode || user.postalCode || "",
+    }));
+  }, [user]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -102,8 +122,11 @@ export const Checkout = () => {
                 required
                 placeholder="ayesha@email.com"
                 value={formData.email}
-                onChange={(event) => setFormData((prev) => ({ ...prev, email: event.target.value }))}
+                disabled
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Order confirmation email uses your signed-in account.
+              </p>
             </div>
             <div>
               <Label>Phone</Label>

@@ -20,7 +20,7 @@ export const AdminLayout = () => {
   const { logout } = useAuth();
 
   const handleLogout = () => {
-    logout();
+    logout("admin");
     navigate("/admin/login");
   };
 
@@ -32,7 +32,6 @@ export const AdminLayout = () => {
     { path: "/admin/orders", label: "Orders", icon: ShoppingBag },
     { path: "/admin/quotes", label: "Quotes", icon: FileText },
     { path: "/admin/customers", label: "Customers", icon: Users },
-    { path: "/admin/reports", label: "Reports", icon: BarChart3 },
     { path: "/admin/settings", label: "Settings", icon: Settings },
   ];
 

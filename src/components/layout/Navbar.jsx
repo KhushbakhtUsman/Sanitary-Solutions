@@ -1,6 +1,6 @@
-﻿import { Link, NavLink, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { Droplet, Menu, X, ShoppingCart, UserCircle, Shield } from "lucide-react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Droplet, Menu, X, ShoppingCart, UserCircle } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { useCart } from "../../contexts/CartContext";
@@ -9,22 +9,32 @@ import { useAuth } from "../../contexts/AuthContext";
 export const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { getCartItemsCount } = useCart();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { customerUser, isRoleAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   const cartCount = getCartItemsCount();
+  const isCustomer = isRoleAuthenticated("customer");
 
   const handleLogout = () => {
-    logout();
+    logout("customer");
     navigate("/");
   };
 
-  const navItems = [
-    { to: "/", label: "Home" },
-    { to: "/products", label: "Products" },
-    { to: "/quote", label: "Request Quote" },
-    { to: "/contact", label: "Contact" },
-  ];
+  const navItems = useMemo(() => {
+    const items = [
+      { to: "/", label: "Home" },
+      { to: "/products", label: "Products" },
+      { to: "/quote", label: "Request Quote" },
+      { to: "/contact", label: "Contact" },
+    ];
+
+    if (isCustomer) {
+      items.push({ to: "/orders/track", label: "Track Orders" });
+      items.push({ to: "/account", label: "My Account" });
+    }
+
+    return items;
+  }, [isCustomer]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur">
@@ -66,18 +76,28 @@ export const Navbar = () => {
               </Button>
             </Link>
 
-
-            {isAuthenticated ? (
+            {isCustomer ? (
               <div className="hidden items-center gap-2 md:flex">
                 <div className="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1">
                   <UserCircle className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">{user?.name}</span>
+                  <span className="text-sm text-gray-600">{customerUser?.name}</span>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleLogout}>
                   Logout
                 </Button>
               </div>
-            ) : null}
+            ) : (
+              <div className="hidden items-center gap-2 md:flex">
+                <Link to="/login">
+                  <Button variant="outline" size="sm">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/signup">
+                  <Button size="sm">Sign Up</Button>
+                </Link>
+              </div>
+            )}
 
             <button
               className="rounded-lg p-2 text-gray-600 md:hidden"
@@ -103,6 +123,39 @@ export const Navbar = () => {
                 {item.label}
               </NavLink>
             ))}
+
+            {isCustomer ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleLogout();
+                    setMobileOpen(false);
+                  }}
+                  className="block text-sm text-gray-700"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <NavLink
+                  to="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="block text-sm text-gray-700"
+                >
+                  Sign In
+                </NavLink>
+                <NavLink
+                  to="/signup"
+                  onClick={() => setMobileOpen(false)}
+                  className="block text-sm text-gray-700"
+                >
+                  Sign Up
+                </NavLink>
+              </>
+            )}
+
             <NavLink
               to="/admin/login"
               onClick={() => setMobileOpen(false)}
@@ -110,26 +163,6 @@ export const Navbar = () => {
             >
               Admin Login
             </NavLink>
-            {isAuthenticated ? (
-              <button
-                type="button"
-                onClick={() => {
-                  handleLogout();
-                  setMobileOpen(false);
-                }}
-                className="block text-sm text-gray-700"
-              >
-                Logout
-              </button>
-            ) : (
-              <NavLink
-                to="/login"
-                onClick={() => setMobileOpen(false)}
-                className="block text-sm text-gray-700"
-              >
-                Sign In
-              </NavLink>
-            )}
           </div>
         </div>
       ) : null}

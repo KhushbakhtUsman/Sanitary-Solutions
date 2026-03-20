@@ -17,6 +17,10 @@ export const CustomerDetailDialog = ({ open, onClose, customer }) => (
           <span className="font-semibold">Phone:</span> {customer.phone}
         </p>
         <p>
+          <span className="font-semibold">Address:</span>{" "}
+          {[customer.address, customer.city, customer.postalCode].filter(Boolean).join(", ") || "-"}
+        </p>
+        <p>
           <span className="font-semibold">Total orders:</span> {customer.orders}
         </p>
         <p>

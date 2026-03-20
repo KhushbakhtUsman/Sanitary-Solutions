@@ -37,6 +37,16 @@ const findOrder = async (value) => {
   return Order.findOne({ orderNumber: value });
 };
 
+const findCustomerOrder = async (customerId, value) => {
+  if (isObjectId(value)) {
+    return (
+      (await Order.findOne({ _id: value, customer: customerId })) ||
+      Order.findOne({ orderNumber: value, customer: customerId })
+    );
+  }
+  return Order.findOne({ orderNumber: value, customer: customerId });
+};
+
 const findProductByAnyId = async (value) => {
   if (isObjectId(value)) {
     const product = await Product.findById(value);
@@ -108,15 +118,61 @@ export const getOrderById = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, "Order fetched", formatOrderForClient(order)));
 });
 
+export const getMyOrders = asyncHandler(async (req, res) => {
+  const { status, search } = req.query;
+  const { page, limit, skip } = getPagination(req.query);
+
+  const filter = { customer: req.customer._id };
+  if (status && status !== "all") {
+    filter.status = status;
+  }
+  if (search?.trim()) {
+    const regex = new RegExp(search.trim(), "i");
+    filter.$or = [{ orderNumber: regex }, { "items.name": regex }];
+  }
+
+  const [orders, total] = await Promise.all([
+    Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Order.countDocuments(filter),
+  ]);
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      "Customer orders fetched",
+      orders.map(formatOrderForClient),
+      {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      }
+    )
+  );
+});
+
+export const getMyOrderById = asyncHandler(async (req, res) => {
+  const order = await findCustomerOrder(req.customer._id, req.params.id);
+  if (!order) {
+    throw new ApiError(404, "Order not found");
+  }
+
+  res.status(200).json(new ApiResponse(200, "Customer order fetched", formatOrderForClient(order)));
+});
+
 export const createOrder = asyncHandler(async (req, res) => {
+  if (!req.customer?._id) {
+    throw new ApiError(401, "Customer authentication is required to place order");
+  }
+
   const { phone, city, postalCode } = req.body;
-  const email = req.body.email?.trim().toLowerCase();
+  const email = req.customer.email;
   const rawAddress = req.body.address?.trim();
   const items = Array.isArray(req.body.items) ? req.body.items : [];
 
-  const customerName = getCustomerName(req.body);
-  if (!customerName || !email || !phone || !rawAddress) {
-    throw new ApiError(400, "Name, email, phone, and address are required");
+  const customerName = getCustomerName(req.body) || req.customer.name;
+  if (!customerName || !phone || !rawAddress) {
+    throw new ApiError(400, "Name, phone, and address are required");
   }
 
   if (items.length === 0) {
@@ -178,25 +234,16 @@ export const createOrder = asyncHandler(async (req, res) => {
   const orderNumber = await buildOrderNumber();
   const formattedAddress = [rawAddress, city, postalCode].filter(Boolean).join(", ");
 
-  let customer = await Customer.findOne({ email });
+  const customer = await Customer.findById(req.customer._id);
   if (!customer) {
-    customer = await Customer.create({
-      name: customerName,
-      email,
-      phone,
-      address: rawAddress,
-      city: city || "",
-      postalCode: postalCode || "",
-      totalOrders: 0,
-      totalSpent: 0,
-    });
-  } else {
-    customer.name = customerName;
-    customer.phone = phone;
-    customer.address = rawAddress;
-    customer.city = city || "";
-    customer.postalCode = postalCode || "";
+    throw new ApiError(404, "Customer not found");
   }
+
+  customer.name = customerName;
+  customer.phone = phone;
+  customer.address = rawAddress;
+  customer.city = city || "";
+  customer.postalCode = postalCode || "";
 
   customer.totalOrders += 1;
   customer.totalSpent += total;

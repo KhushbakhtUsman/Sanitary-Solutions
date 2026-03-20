@@ -161,6 +161,23 @@ export const deleteQuoteApi = async (id) => {
   await apiRequest(`/quotes/${id}`, { method: "DELETE", auth: true });
 };
 
+export const getCustomersApi = async (params = {}) => {
+  const response = await apiRequest(`/customers${buildQueryString(params)}`, { auth: true });
+  return {
+    data: unwrap(response) || [],
+    meta: response?.meta || null,
+  };
+};
+
+export const getCustomerByIdApi = async (id) => {
+  const response = await apiRequest(`/customers/${id}`, { auth: true });
+  return unwrap(response);
+};
+
+export const deleteCustomerApi = async (id) => {
+  await apiRequest(`/customers/${id}`, { method: "DELETE", auth: true });
+};
+
 export const getSettingsApi = async () => {
   const response = await apiRequest("/settings/store", { auth: true });
   return unwrap(response);
@@ -172,5 +189,10 @@ export const updateSettingsApi = async (payload) => {
     auth: true,
     body: payload,
   });
+  return unwrap(response);
+};
+
+export const getDashboardBundleApi = async (params = {}) => {
+  const response = await apiRequest(`/dashboard/bundle${buildQueryString(params)}`, { auth: true });
   return unwrap(response);
 };
